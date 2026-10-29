@@ -1,0 +1,304 @@
+<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Journal Mass Email Generator</title>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script><script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>:root{--b:#173b57;--a:#147d92;--bg:#f4f7f9;--line:#d8e1e7}*{box-sizing:border-box}body{margin:0;font-family:system-ui,Segoe UI,Arial;color:#173042;background:var(--bg)}header{background:linear-gradient(120deg,var(--b),var(--a));color:#fff;padding:28px 5vw}.wrap{max-width:1500px;margin:22px auto;padding:0 20px}.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px;box-shadow:0 3px 15px #1231}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:13px}.field{display:flex;flex-direction:column;gap:6px}.field label{font-size:12px;font-weight:750}input,select,textarea,button{padding:10px 12px;border:1px solid #b9c9d3;border-radius:8px;background:#fff;font:inherit}textarea{min-height:115px;resize:vertical}button{cursor:pointer;font-weight:750}.primary{background:var(--a);color:#fff;border:0}.dark{background:var(--b);color:#fff;border:0}.drop{border:2px dashed #91aab9;padding:25px;text-align:center;border-radius:12px;background:#fbfdfe}.muted{color:#607887;font-size:13px}.hidden{display:none}.controls{display:flex;gap:10px;flex-wrap:wrap;align-items:end}.stats{display:flex;gap:10px;flex-wrap:wrap}.stat{background:#eef6f8;padding:10px 14px;border-radius:9px}.tablebox{overflow:auto;max-height:600px;border:1px solid var(--line);border-radius:9px}table{border-collapse:collapse;width:max-content;min-width:100%}th,td{border-bottom:1px solid #e5ebef;border-right:1px solid #edf1f4;padding:8px 10px;text-align:left;vertical-align:top;max-width:520px;white-space:pre-wrap}th{position:sticky;top:0;background:#173b57;color:#fff;z-index:2}tr:nth-child(even) td{background:#f8fafb}.preview{white-space:pre-wrap;background:#f8fafb;border:1px solid var(--line);padding:16px;border-radius:10px;min-height:220px}.tag{display:inline-block;background:#dff2f4;color:#075c68;padding:3px 8px;border-radius:99px;font-size:12px}</style></head><body><header><h1>Journal Mass Email Generator</h1><div>Buat redaksi email personal untuk undangan penulis/kontributor, editor, atau reviewer dari Excel</div></header><div class="wrap">
+<div class="card"><h2>1. Informasi jurnal & jenis undangan</h2><div class="grid"><div class="field"><label>Jenis undangan</label><select id="type"><option value="author">Kontributor / Penulis</option><option value="editor">Editor / Editorial Board</option><option value="reviewer">Reviewer</option></select></div><div class="field"><label>Nama jurnal *</label><input id="journal" placeholder="Contoh: Khazanah Theologia"></div><div class="field"><label>Bahasa email</label><select id="lang"><option value="en">English</option><option value="id">Bahasa Indonesia</option></select></div><div class="field"><label>Nama pengirim / jabatan</label><input id="sender" placeholder="Contoh: Editor-in-Chief / Editorial Office"></div></div><div class="grid" style="margin-top:13px"><div class="field"><label>Focus & Scope *</label><textarea id="scope" placeholder="Masukkan focus and scope jurnal..."></textarea></div><div class="field"><label>Informasi tambahan (1 field)</label><textarea id="extra" placeholder="Misalnya: open access, no APC, frekuensi terbit, indeksasi, URL submission, deadline, benefit editor/reviewer, dll."></textarea></div></div></div>
+<div class="card"><h2>2. Upload Excel</h2><div id="drop" class="drop"><b>Tarik & jatuhkan Excel (.xlsx/.xls) di sini</b><br><span class="muted">atau pilih file. Format contoh: Title, Link, Correspondence Address, Corresponding Author, Affiliation / Address, Email.</span><br><br><input id="file" type="file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"></div><div id="status" class="muted" style="margin-top:10px">Belum ada file.</div><div id="map" class="hidden" style="margin-top:15px"><div class="grid"><div class="field"><label>Kolom nama penerima</label><select id="nameCol"></select></div><div class="field"><label>Kolom email</label><select id="emailCol"></select></div><div class="field"><label>Kolom judul artikel / topik (opsional)</label><select id="titleCol"></select></div><div class="field"><label>Kolom afiliasi (opsional)</label><select id="affCol"></select></div></div><div class="controls" style="margin-top:13px"><label><input type="checkbox" id="validOnly" checked> Hanya email valid</label><label><input type="checkbox" id="firstName"> Sapaan memakai nama pertama saja</label></div></div></div>
+<div class="card"><h2>3. Template & personalisasi</h2><div class="grid"><div class="field"><label>Subject template</label><input id="subject"></div><div class="field"><label>Gaya redaksi</label><select id="tone"><option value="warm">Warm Academic</option><option value="formal">Formal Academic</option><option value="concise">Concise</option></select></div><div class="field"><label>Salutation</label><select id="salute"><option value="Dear">Dear</option><option value="Dear Dr.">Dear Dr.</option><option value="Dear Prof.">Dear Prof.</option><option value="Yth.">Yth.</option></select></div></div><div class="field" style="margin-top:13px"><label>Template email (dapat diedit)</label><textarea id="body" style="min-height:310px"></textarea><span class="muted">Placeholder dinamis mengikuti kolom Excel yang dipetakan, misalnya: &lt;&lt;Corresponding Author&gt;&gt;, &lt;&lt;Email&gt;&gt;, &lt;&lt;Title&gt;&gt;, &lt;&lt;Affiliation / Address&gt;&gt;. Informasi jurnal, focus &amp; scope, informasi tambahan, dan pengirim diterapkan langsung ke template.</span></div><div class="controls" style="margin-top:13px"><button class="primary" id="generate">Generate Email Massal</button><button id="refreshTpl">Reset Template Sesuai Jenis Undangan</button></div></div>
+<div id="results" class="hidden"><div class="card"><h2>4. Hasil</h2><div id="stats" class="stats"></div><div class="controls" style="margin-top:13px"><div class="field"><label>Cari</label><input id="search" placeholder="nama, email, artikel..."></div><button class="dark" id="excel">Unduh Excel</button><button id="csvOut">Unduh CSV</button></div></div><div class="card"><h3>Preview email pertama</h3><div id="preview" class="preview"></div></div><div class="card"><div class="tablebox"><table><thead id="thead"></thead><tbody id="tbody"></tbody></table></div></div></div>
+</div><script>
+let raw=[],cols=[],out=[];const $=x=>document.getElementById(x),esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+const templates={
+en:{
+ author:{
+  warm:{sub:'Invitation to Contribute to [[JOURNAL]]',body:`[[SALUTE]] <<[[NAMECOL]]>>,
+
+I hope this message finds you well.
+
+I am writing on behalf of the Editorial Team of [[JOURNAL]] to invite you to consider contributing an original manuscript to our journal.
+
+We recently came across your work, “<<[[TITLECOL]]>>,” and believe that your research interests may align well with the scholarly direction of [[JOURNAL]]. Given your expertise in this area, we would be delighted to receive a future contribution from you.
+
+[[JOURNAL]] welcomes original and high-quality research in the following areas:
+[[SCOPE]]
+
+[[EXTRABLOCK]]Should you have a manuscript—either completed or currently in development—that fits this scholarly focus, we would be pleased to welcome your submission for consideration. All submissions follow the journal's regular editorial screening and peer-review process.
+
+We hope you will consider [[JOURNAL]] as a venue for your future research, and we look forward to the possibility of receiving your work.
+
+Warm regards,
+[[SENDER]]
+[[JOURNAL]]`},
+  formal:{sub:'Invitation to Submit a Manuscript to [[JOURNAL]]',body:`[[SALUTE]] <<[[NAMECOL]]>>,
+
+On behalf of the Editorial Team of [[JOURNAL]], I am pleased to invite you to submit an original scholarly manuscript for consideration in the journal.
+
+Your publication, “<<[[TITLECOL]]>>,” reflects research interests that are relevant to the journal's academic profile. We therefore believe that your expertise could make a valuable contribution to our readership and scholarly community.
+
+The journal particularly welcomes research addressing:
+[[SCOPE]]
+
+[[EXTRABLOCK]]If you are currently preparing research within these areas, we would be pleased to consider your manuscript. As with all submissions, invited manuscripts are subject to the journal's standard editorial assessment and peer-review procedures.
+
+Thank you for considering [[JOURNAL]] as a possible publication venue. We would be honored to receive your future work.
+
+Sincerely,
+[[SENDER]]
+[[JOURNAL]]`},
+  concise:{sub:'Invitation to Contribute to [[JOURNAL]]',body:`[[SALUTE]] <<[[NAMECOL]]>>,
+
+I am writing from [[JOURNAL]] to invite you to consider submitting an original manuscript to the journal. We came across your work, “<<[[TITLECOL]]>>,” and believe your research interests are relevant to our scholarly focus.
+
+Our current scope includes:
+[[SCOPE]]
+
+[[EXTRABLOCK]]If you have a completed or developing manuscript in these areas, we would be pleased to consider it through our regular peer-review process.
+
+We would be delighted to hear from you.
+
+Best regards,
+[[SENDER]]
+[[JOURNAL]]`}},
+ editor:{
+  warm:{sub:'Invitation to Join the Editorial Board of [[JOURNAL]]',body:`[[SALUTE]] <<[[NAMECOL]]>>,
+
+I hope you are doing well.
+
+On behalf of [[JOURNAL]], I would be delighted to invite you to consider joining our Editorial Board. We became familiar with your scholarship through your work, including “<<[[TITLECOL]]>>,” and believe your expertise would be highly relevant to the journal's academic development.
+
+[[JOURNAL]] is developing its international scholarly community around the following areas:
+[[SCOPE]]
+
+[[EXTRABLOCK]]As a member of the Editorial Board, your contribution may include providing strategic academic advice, recommending authors or reviewers, helping broaden the journal's scholarly network, and occasionally supporting editorial decisions in areas close to your expertise. Participation would, of course, take account of your availability.
+
+We would be honored to have your expertise represented on the Editorial Board and would be pleased to provide any further information you may need.
+
+Warm regards,
+[[SENDER]]
+[[JOURNAL]]`},
+  formal:{sub:'Invitation to Join the Editorial Board of [[JOURNAL]]',body:`[[SALUTE]] <<[[NAMECOL]]>>,
+
+On behalf of [[JOURNAL]], I am pleased to invite you to join the journal's Editorial Board. Your scholarly profile and research represented by “<<[[TITLECOL]]>>” indicate expertise that is closely aligned with the journal's academic direction.
+
+The journal's principal areas of interest include:
+[[SCOPE]]
+
+[[EXTRABLOCK]]Editorial Board members contribute to maintaining scholarly standards, advising on journal development, strengthening international academic networks, and, where appropriate, supporting editorial assessment within their fields of expertise.
+
+We would be grateful if you would consider this invitation and would be pleased to provide further details regarding the role and expected level of involvement.
+
+Sincerely,
+[[SENDER]]
+[[JOURNAL]]`},
+  concise:{sub:'Editorial Board Invitation — [[JOURNAL]]',body:`[[SALUTE]] <<[[NAMECOL]]>>,
+
+We would like to invite you to consider joining the Editorial Board of [[JOURNAL]]. Your work, including “<<[[TITLECOL]]>>,” suggests expertise that aligns closely with our journal's focus:
+
+[[SCOPE]]
+
+[[EXTRABLOCK]]Board members support the journal's academic development, scholarly network, and editorial quality according to their expertise and availability.
+
+We would be honored to have you involved and would be happy to share further details.
+
+Best regards,
+[[SENDER]]
+[[JOURNAL]]`}},
+ reviewer:{
+  warm:{sub:'Invitation to Join the Reviewer Community of [[JOURNAL]]',body:`[[SALUTE]] <<[[NAMECOL]]>>,
+
+I hope this message finds you well.
+
+I am writing on behalf of [[JOURNAL]] to invite you to join our reviewer community. We came across your work, “<<[[TITLECOL]]>>,” and believe your expertise would be valuable in assessing manuscripts related to the journal's scholarly areas.
+
+[[JOURNAL]] welcomes research in the following areas:
+[[SCOPE]]
+
+[[EXTRABLOCK]]Review invitations would be sent only when a manuscript closely matches your expertise, and you would always be free to accept or decline depending on your availability. We value reviews that are rigorous, constructive, respectful, and helpful to authors.
+
+We would be very pleased to include you among the scholars we may approach for future peer review.
+
+Warm regards,
+[[SENDER]]
+[[JOURNAL]]`},
+  formal:{sub:'Invitation to Serve as a Reviewer for [[JOURNAL]]',body:`[[SALUTE]] <<[[NAMECOL]]>>,
+
+On behalf of [[JOURNAL]], I am pleased to invite you to serve as a reviewer for the journal. Your research, including “<<[[TITLECOL]]>>,” demonstrates expertise relevant to manuscripts within our editorial scope.
+
+The journal covers the following areas:
+[[SCOPE]]
+
+[[EXTRABLOCK]]Reviewer invitations are assigned according to subject expertise. Each invitation may be accepted or declined based on your availability, and all reviews are expected to follow the journal's standards of confidentiality, scholarly rigor, and constructive assessment.
+
+We would greatly appreciate your consideration of this invitation.
+
+Sincerely,
+[[SENDER]]
+[[JOURNAL]]`},
+  concise:{sub:'Reviewer Invitation — [[JOURNAL]]',body:`[[SALUTE]] <<[[NAMECOL]]>>,
+
+We would like to invite you to join the reviewer pool of [[JOURNAL]]. Your work, “<<[[TITLECOL]]>>,” indicates expertise relevant to our scope:
+
+[[SCOPE]]
+
+[[EXTRABLOCK]]We will contact you only for manuscripts that match your expertise, and you may accept or decline each request according to your availability.
+
+We would be grateful to include you in our reviewer community.
+
+Best regards,
+[[SENDER]]
+[[JOURNAL]]`}}
+},
+id:{
+ author:{
+  warm:{sub:'Undangan Berkontribusi di [[JOURNAL]]',body:`[[SALUTE]] <<[[NAMECOL]]>>,
+
+Semoga Anda dalam keadaan baik.
+
+Saya menghubungi Anda atas nama Tim Editorial [[JOURNAL]] untuk mengundang Anda mempertimbangkan pengiriman naskah orisinal ke jurnal kami.
+
+Kami menemukan karya Anda berjudul “<<[[TITLECOL]]>>” dan melihat bahwa minat riset Anda memiliki keterkaitan yang baik dengan arah akademik [[JOURNAL]]. Karena itu, kami akan sangat senang apabila di masa mendatang Anda berkenan mempertimbangkan jurnal kami sebagai salah satu tempat publikasi karya Anda.
+
+[[JOURNAL]] menerima penelitian berkualitas dalam bidang berikut:
+[[SCOPE]]
+
+[[EXTRABLOCK]]Apabila Anda memiliki naskah yang telah selesai maupun sedang dikembangkan dan sesuai dengan fokus tersebut, kami dengan senang hati akan menerima pengajuannya untuk dipertimbangkan. Seluruh naskah tetap mengikuti proses screening editorial dan peer review reguler jurnal.
+
+Kami berharap dapat menerima karya Anda di [[JOURNAL]] pada kesempatan mendatang.
+
+Salam hangat,
+[[SENDER]]
+[[JOURNAL]]`},
+  formal:{sub:'Undangan Pengiriman Naskah ke [[JOURNAL]]',body:`[[SALUTE]] <<[[NAMECOL]]>>,
+
+Atas nama Tim Editorial [[JOURNAL]], kami mengundang Anda untuk mengirimkan naskah ilmiah orisinal untuk dipertimbangkan publikasinya di jurnal kami.
+
+Karya Anda berjudul “<<[[TITLECOL]]>>” menunjukkan bidang kepakaran yang relevan dengan profil akademik jurnal. Kami meyakini penelitian Anda berpotensi memberikan kontribusi yang bernilai bagi pembaca dan komunitas akademik [[JOURNAL]].
+
+Jurnal terutama menerima penelitian dalam bidang:
+[[SCOPE]]
+
+[[EXTRABLOCK]]Naskah yang diajukan akan mengikuti proses evaluasi editorial dan peer review sesuai dengan kebijakan jurnal.
+
+Kami berharap Anda berkenan mempertimbangkan [[JOURNAL]] sebagai salah satu tujuan publikasi penelitian Anda.
+
+Hormat kami,
+[[SENDER]]
+[[JOURNAL]]`},
+  concise:{sub:'Undangan Berkontribusi — [[JOURNAL]]',body:`[[SALUTE]] <<[[NAMECOL]]>>,
+
+Kami mengundang Anda untuk mempertimbangkan pengiriman naskah ke [[JOURNAL]]. Karya Anda, “<<[[TITLECOL]]>>,” menunjukkan minat riset yang relevan dengan fokus jurnal kami:
+
+[[SCOPE]]
+
+[[EXTRABLOCK]]Apabila Anda memiliki naskah yang sesuai, kami akan senang menerimanya untuk dipertimbangkan melalui proses peer review reguler.
+
+Salam,
+[[SENDER]]
+[[JOURNAL]]`}},
+ editor:{
+  warm:{sub:'Undangan Bergabung dalam Editorial Board [[JOURNAL]]',body:`[[SALUTE]] <<[[NAMECOL]]>>,
+
+Semoga Anda dalam keadaan baik.
+
+Atas nama [[JOURNAL]], kami dengan senang hati mengundang Anda untuk mempertimbangkan bergabung dalam Editorial Board. Kami mengenal kepakaran Anda melalui karya, termasuk “<<[[TITLECOL]]>>,” dan melihat adanya kesesuaian yang kuat dengan arah akademik jurnal.
+
+[[JOURNAL]] mengembangkan jejaring akademik pada bidang:
+[[SCOPE]]
+
+[[EXTRABLOCK]]Kontribusi anggota Editorial Board dapat mencakup pemberian masukan akademik, rekomendasi penulis atau reviewer, penguatan jejaring ilmiah jurnal, serta dukungan terhadap keputusan editorial pada bidang yang sesuai dengan kepakaran dan ketersediaan waktu masing-masing.
+
+Kami akan merasa terhormat apabila Anda berkenan menjadi bagian dari pengembangan [[JOURNAL]].
+
+Salam hangat,
+[[SENDER]]
+[[JOURNAL]]`},
+  formal:{sub:'Undangan Menjadi Anggota Editorial Board [[JOURNAL]]',body:`[[SALUTE]] <<[[NAMECOL]]>>,
+
+Atas nama [[JOURNAL]], kami mengundang Anda untuk bergabung sebagai anggota Editorial Board. Profil akademik dan karya Anda, termasuk “<<[[TITLECOL]]>>,” menunjukkan kepakaran yang relevan dengan arah pengembangan jurnal.
+
+Ruang lingkup utama jurnal meliputi:
+[[SCOPE]]
+
+[[EXTRABLOCK]]Anggota Editorial Board diharapkan berkontribusi dalam menjaga standar akademik, memberikan masukan terhadap pengembangan jurnal, memperkuat jejaring ilmiah internasional, serta mendukung proses editorial sesuai bidang kepakaran.
+
+Kami sangat menghargai apabila Anda berkenan mempertimbangkan undangan ini.
+
+Hormat kami,
+[[SENDER]]
+[[JOURNAL]]`},
+  concise:{sub:'Undangan Editorial Board — [[JOURNAL]]',body:`[[SALUTE]] <<[[NAMECOL]]>>,
+
+Kami mengundang Anda untuk mempertimbangkan bergabung dalam Editorial Board [[JOURNAL]]. Kepakaran yang tercermin dalam karya “<<[[TITLECOL]]>>” relevan dengan fokus jurnal:
+
+[[SCOPE]]
+
+[[EXTRABLOCK]]Peran anggota mencakup dukungan terhadap pengembangan akademik, jejaring ilmiah, dan kualitas editorial sesuai kepakaran dan ketersediaan.
+
+Kami akan merasa terhormat apabila Anda berkenan bergabung.
+
+Salam,
+[[SENDER]]
+[[JOURNAL]]`}},
+ reviewer:{
+  warm:{sub:'Undangan Bergabung sebagai Reviewer [[JOURNAL]]',body:`[[SALUTE]] <<[[NAMECOL]]>>,
+
+Semoga Anda dalam keadaan baik.
+
+Kami menghubungi Anda atas nama [[JOURNAL]] untuk mengundang Anda bergabung dalam komunitas reviewer jurnal. Kami menemukan karya Anda, “<<[[TITLECOL]]>>,” dan menilai kepakaran Anda relevan untuk membantu menilai naskah dalam bidang yang diterbitkan jurnal.
+
+[[JOURNAL]] menerima penelitian dalam bidang:
+[[SCOPE]]
+
+[[EXTRABLOCK]]Undangan review hanya akan dikirim apabila terdapat naskah yang sesuai dengan kepakaran Anda. Anda tetap dapat menerima atau menolak setiap penugasan sesuai ketersediaan waktu. Kami sangat menghargai review yang kritis, konstruktif, etis, dan membantu penulis meningkatkan kualitas naskah.
+
+Kami akan sangat senang apabila Anda berkenan menjadi bagian dari komunitas reviewer [[JOURNAL]].
+
+Salam hangat,
+[[SENDER]]
+[[JOURNAL]]`},
+  formal:{sub:'Undangan Menjadi Reviewer [[JOURNAL]]',body:`[[SALUTE]] <<[[NAMECOL]]>>,
+
+Atas nama [[JOURNAL]], kami mengundang Anda untuk bergabung sebagai reviewer. Karya Anda, termasuk “<<[[TITLECOL]]>>,” menunjukkan kepakaran yang relevan dengan naskah-naskah dalam ruang lingkup jurnal.
+
+Ruang lingkup jurnal meliputi:
+[[SCOPE]]
+
+[[EXTRABLOCK]]Penugasan review diberikan berdasarkan kesesuaian bidang kepakaran. Setiap undangan dapat diterima atau ditolak sesuai ketersediaan, dengan tetap menjunjung kerahasiaan, ketelitian akademik, dan penilaian yang konstruktif.
+
+Kami sangat menghargai kesediaan Anda untuk mempertimbangkan undangan ini.
+
+Hormat kami,
+[[SENDER]]
+[[JOURNAL]]`},
+  concise:{sub:'Undangan Reviewer — [[JOURNAL]]',body:`[[SALUTE]] <<[[NAMECOL]]>>,
+
+Kami mengundang Anda bergabung dalam reviewer pool [[JOURNAL]]. Karya “<<[[TITLECOL]]>>” menunjukkan kepakaran yang relevan dengan fokus kami:
+
+[[SCOPE]]
+
+[[EXTRABLOCK]]Kami hanya akan menghubungi Anda untuk naskah yang sesuai dengan kepakaran, dan setiap penugasan dapat diterima atau ditolak sesuai ketersediaan.
+
+Terima kasih atas pertimbangannya.
+
+Salam,
+[[SENDER]]
+[[JOURNAL]]`}}
+}};
+function staticTemplate(){
+ let t=templates[$('lang').value][$('type').value][$('tone').value], journal=$('journal').value.trim()||'[Nama Jurnal]', scope=$('scope').value.trim()||'[Focus & Scope]', extra=$('extra').value.trim(), sender=$('sender').value.trim()||'Editorial Office', salute=$('salute').value;
+ let nc=$('nameCol').value||'Corresponding Author', tc=$('titleCol').value||'Title', ac=$('affCol').value||'Affiliation / Address';
+ let extraBlock='';
+ if(extra){extraBlock=($('lang').value==='en'?'A few additional details about the journal may also be useful:\n':'Beberapa informasi tambahan mengenai jurnal yang mungkin berguna:\n')+extra+'\n\n'}
+ const vals={'[[JOURNAL]]':journal,'[[SCOPE]]':scope,'[[EXTRABLOCK]]':extraBlock,'[[SENDER]]':sender,'[[SALUTE]]':salute,'[[NAMECOL]]':nc,'[[TITLECOL]]':tc,'[[AFFCOL]]':ac};
+ let apply=x=>{for(const [k,v] of Object.entries(vals))x=x.split(k).join(v);return x};
+ return {sub:apply(t.sub),body:apply(t.body)};
+}
+function tpl(){if($('lang').value==='id'&&$('salute').value==='Dear')$('salute').value='Yth.';if($('lang').value==='en'&&$('salute').value==='Yth.')$('salute').value='Dear';let t=staticTemplate();$('subject').value=t.sub;$('body').value=t.body}
+function opts(sel,none=false){$(sel).innerHTML=(none?'<option value="">— Tidak digunakan —</option>':'')+cols.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('')}
+function auto(sel,re){let c=cols.find(x=>re.test(x));if(c)$(sel).value=c}
+function load(f){let rd=new FileReader();rd.onload=e=>{try{let data=new Uint8Array(e.target.result),wb=XLSX.read(data,{type:'array'}),sheet=wb.SheetNames.includes('Extracted Data')?'Extracted Data':wb.SheetNames[0],ws=wb.Sheets[sheet],arr=XLSX.utils.sheet_to_json(ws,{defval:'',raw:false});raw=arr;cols=arr.length?Object.keys(arr[0]):[];if(!cols.length)throw new Error('Sheet tidak memiliki header/data.');['nameCol','emailCol'].forEach(x=>opts(x));['titleCol','affCol'].forEach(x=>opts(x,true));auto('nameCol',/^corresponding author$|author|name/i);auto('emailCol',/^email$|e-?mail/i);auto('titleCol',/^title$|article|judul/i);auto('affCol',/^affiliation \/ address$|affiliation|address|institution/i);$('map').classList.remove('hidden');$('status').innerHTML=`<b>${esc(f.name)}</b> — Sheet: <b>${esc(sheet)}</b> — ${raw.length.toLocaleString('id-ID')} baris, ${cols.length} kolom`;out=[];$('results').classList.add('hidden')}catch(err){$('status').textContent='Gagal membaca Excel: '+err.message}};rd.onerror=()=>{$('status').textContent='Gagal membaca file Excel.'};rd.readAsArrayBuffer(f)}
+function repDynamic(s,r){return s.replace(/<<([^<>]+)>>/g,(_,col)=>String(r[col]??''))}
+function generate(){if(!raw.length)return alert('Upload Excel terlebih dahulu.');if(!$('journal').value.trim()||!$('scope').value.trim())return alert('Isi nama jurnal dan focus & scope.');let nc=$('nameCol').value,ec=$('emailCol').value,tc=$('titleCol').value,ac=$('affCol').value,valid=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;out=raw.map((r,i)=>{let rr={...r};let name=String(r[nc]||'').trim(),email=String(r[ec]||'').trim(),title=tc?String(r[tc]||'').trim():'',aff=ac?String(r[ac]||'').trim():'';if($('firstName').checked&&name){name=name.split(/\s+/)[0];rr[nc]=name}return {'No.':i+1,'Recipient Name':name,'Email':email,'Affiliation':aff,'Source Title':title,'Subject':repDynamic($('subject').value,rr),'Email Body':repDynamic($('body').value,rr)}}).filter(x=>!$('validOnly').checked||valid.test(x.Email));$('results').classList.remove('hidden');render();window.scrollTo({top:$('results').offsetTop-10,behavior:'smooth'})}
+$('file').onchange=e=>e.target.files[0]&&load(e.target.files[0]);['dragover','drop'].forEach(ev=>$('drop').addEventListener(ev,e=>{e.preventDefault();if(ev==='drop'&&e.dataTransfer.files[0])load(e.dataTransfer.files[0])}));$('generate').onclick=generate;$('refreshTpl').onclick=tpl;$('type').onchange=tpl;$('lang').onchange=tpl;$('tone').onchange=tpl;$('search').oninput=render;$('excel').onclick=excel;$('csvOut').onclick=csvOut;tpl();
+
+['journal','scope','extra','sender','salute','nameCol','titleCol','affCol'].forEach(id=>$(id).addEventListener('change',tpl));
+</script></body></html>
